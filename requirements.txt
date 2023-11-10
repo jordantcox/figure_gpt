@@ -1,0 +1,8 @@
+openai
+scipy
+pandas
+numpy
+networkx
+plotly
+nbformat
+openpyxl
