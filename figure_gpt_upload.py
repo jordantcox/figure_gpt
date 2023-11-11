@@ -94,12 +94,21 @@ if st.session_state['plot_boolean'] == True:
                     messages=[
                         {'role':'system', 'content': 'Only return python code.'},
                         {'role':'system', 'content': 'I have provided you a dataset with a head that looks like '+df.head().to_string()},
-                        {'role':'user', 'content': prompt}
+                        {'role':'user', 'content': 'Return just the python code to' + prompt+' In the dataframe df. Use plotly and streamlit.'}
                     ],
                     stream=True,
                 ):
                     full_response += response.choices[0].delta.get("content", "")
                     #message_placeholder.markdown(full_response + "▌")
                 #message_placeholder.markdown(full_response)
-                exec(full_response)
+
+                try:
+                    exec(full_response)
+                except: 
+                    full_response = full_response[full_response.find('python')+6:]
+                    full_response = full_response[:full_response.find('```')]
+                    try:
+                        exec(full_response)
+                    except:
+                        print(full_response)
             #st.session_state.messages.append({"role": "assistant", "content": full_response}) 
