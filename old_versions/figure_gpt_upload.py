@@ -2,15 +2,12 @@ from distutils.command import upload
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import openai
 import os
-from openai import AzureOpenAI
 
-## Setting up the Openai client
-client = AzureOpenAI(
-  api_key = st.secrets['openai_api_key'],  
-  api_version = "2023-03-15-preview",
-  azure_endpoint = "https://stratus-embeddings-south-central.openai.azure.com/"
-)
+## Setting up open ai
+openai.api_key = st.secrets['openai_api_key']
+
 
 ## Uploading a file
 st.title('FigureGPT')
@@ -28,9 +25,10 @@ if uploaded_file is not None:
     # If one button is pressed call the information chatbot. 
     # If another button is pressed call the plotting chatbot. 
 
-    # Prepping the Model
+
+## Prepping the Model
 if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = "gpt-35-turbo"
+    st.session_state["openai_model"] = "gpt-3.5-turbo"
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -67,17 +65,19 @@ if st.session_state['plot_boolean'] == False:
             with st.chat_message("assistant"):
                 message_placeholder = st.empty()
                 full_response = ""
-
-                response = client.chat.completions.create(
+                for response in openai.ChatCompletion.create(
                     model=st.session_state["openai_model"],
                     messages=[
                         {'role':'system', 'content': 'You are a helpful assistant.'},
                         {'role':'system', 'content': 'I have provided you a dataset with a head that looks like '+df.head().to_string()},
                         {'role':'user', 'content': prompt}
                     ],
-                )
-                message_placeholder.markdown(response.choices[0].message.content)
-            #st.session_state.messages.append({"role": "assistant", "content": response.choices[0].message.content}) 
+                    stream=True,
+                ):
+                    full_response += response.choices[0].delta.get("content", "")
+                    message_placeholder.markdown(full_response + "▌")
+                message_placeholder.markdown(full_response)
+            #st.session_state.messages.append({"role": "assistant", "content": full_response}) 
 
 
 if st.session_state['plot_boolean'] == True: 
@@ -89,21 +89,19 @@ if st.session_state['plot_boolean'] == True:
             with st.chat_message("assistant"):
                 message_placeholder = st.empty()
                 full_response = ""
-                #for response in openai.ChatCompletion.create(
-                response = client.chat.completions.create(
+                for response in openai.ChatCompletion.create(
                     model=st.session_state["openai_model"],
                     messages=[
                         {'role':'system', 'content': 'Only return python code.'},
                         {'role':'system', 'content': 'I have provided you a dataset with a head that looks like '+df.head().to_string()},
                         {'role':'user', 'content': 'Return just the python code to' + prompt+' In the dataframe df. Use plotly and streamlit.'}
-                    ]
-                )
-                #):
-                full_response = response.choices[0].message.content
-                    #full_response += response.choices[0].delta.get("content", "")
+                    ],
+                    stream=True,
+                ):
+                    full_response += response.choices[0].delta.get("content", "")
                     #message_placeholder.markdown(full_response + "▌")
                 #message_placeholder.markdown(full_response)
-                message_placeholder.markdown(full_response)
+
                 try:
                     exec(full_response)
                 except: 
@@ -113,3 +111,4 @@ if st.session_state['plot_boolean'] == True:
                         exec(full_response)
                     except:
                         print(full_response)
+            #st.session_state.messages.append({"role": "assistant", "content": full_response}) 
